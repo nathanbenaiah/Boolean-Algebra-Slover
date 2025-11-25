@@ -1,4 +1,4 @@
-Boolean Algebra Solver
+## Boolean Algebra Solver
 
 A web-based Boolean algebra solver with interactive tools.
 
