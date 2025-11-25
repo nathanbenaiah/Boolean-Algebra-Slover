@@ -1,10 +1,10 @@
 /**
  * Comprehensive type definitions for Unified Diagram Editor
- * Supports DFD, ER, and ERR diagram types
+ * Supports DFD, ER, ERR, and Flowchart diagram types
  */
 
 // Diagram Modes
-export type DiagramMode = 'dfd' | 'er' | 'err';
+export type DiagramMode = 'dfd' | 'er' | 'err' | 'flowchart';
 
 // DFD Types
 export type DFDNodeType = 'external-entity' | 'process' | 'data-store';
@@ -116,11 +116,46 @@ export interface ERDiagram {
   };
 }
 
+// Flowchart Types
+export type FlowchartNodeType = 'start' | 'end' | 'process' | 'decision' | 'input-output' | 'connector' | 'predefined-process';
+
+export interface FlowchartNode {
+  id: string;
+  type: FlowchartNodeType;
+  label: string;
+  description?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: string;
+}
+
+export interface FlowchartConnection {
+  id: string;
+  from: string;
+  to: string;
+  label?: string;
+  color?: string;
+  style?: 'solid' | 'dashed' | 'dotted';
+}
+
+export interface FlowchartDiagram {
+  nodes: FlowchartNode[];
+  connections: FlowchartConnection[];
+  metadata?: {
+    created?: string;
+    modified?: string;
+    version?: string;
+  };
+}
+
 // Unified Diagram Data
 export interface UnifiedDiagram {
   mode: DiagramMode;
   dfd?: DFDDiagram;
   er?: ERDiagram;
+  flowchart?: FlowchartDiagram;
   viewport?: {
     zoom: number;
     panX: number;
@@ -143,8 +178,8 @@ export interface CanvasState {
 
 // History State
 export interface HistoryState {
-  nodes?: DFDNode[] | EREntity[];
-  connections?: DFDConnection[] | ERRelationship[];
+  nodes?: DFDNode[] | EREntity[] | FlowchartNode[];
+  connections?: DFDConnection[] | ERRelationship[] | FlowchartConnection[];
   timestamp: number;
 }
 
@@ -166,7 +201,7 @@ export interface ValidationResult {
 }
 
 // Side Panel Types
-export type SidePanelMode = 'entity' | 'attribute' | 'relationship' | 'process' | 'data-store' | 'external-entity' | 'specialization' | null;
+export type SidePanelMode = 'entity' | 'attribute' | 'relationship' | 'process' | 'data-store' | 'external-entity' | 'specialization' | 'flowchart-node' | 'flowchart-connection' | null;
 
 export interface SidePanelState {
   isOpen: boolean;

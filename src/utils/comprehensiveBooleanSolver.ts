@@ -77,6 +77,7 @@ export interface ComprehensiveResult {
   truthTable: TruthTableRow[];
   karnaughMap: KarnaughMap | KMapType;
   logicCircuit: LogicCircuit;
+  parsed?: BooleanExpression;
   lawsApplied: string[];
   complexity: {
     original: number;
@@ -590,6 +591,24 @@ export function comprehensiveSimplify(expression: string): ComprehensiveResult {
   const reduction = originalComplexity > 0 ? 
     Math.round(((originalComplexity - simplifiedComplexity) / originalComplexity) * 100) : 0;
   
+  // Always add final step explicitly, even if no intermediate steps were generated
+  const lastStepExpression = steps.length > 0 ? steps[steps.length - 1].expression : expression;
+  if (simplifiedString !== lastStepExpression || steps.length === 1) {
+    // Only add final step if it's different from the last step, or if we only have the start step
+    const finalStepExists = steps.some(step => step.rule === 'Final Simplified Expression' || (step.rule !== 'Start' && step.expression === simplifiedString));
+    if (!finalStepExists) {
+      steps.push({
+        step: stepCount++,
+        expression: simplifiedString,
+        rule: 'Final Simplified Expression',
+        description: 'This is the most simplified form of your Boolean expression.',
+        lawApplied: 'Final Result',
+        beforeExpression: lastStepExpression,
+        afterExpression: simplifiedString
+      });
+    }
+  }
+  
   // Step 5: Detect gates used
   const gatesUsed = detectGatesUsed(expression);
   
@@ -600,6 +619,7 @@ export function comprehensiveSimplify(expression: string): ComprehensiveResult {
     truthTable,
     karnaughMap,
     logicCircuit,
+    parsed: originalExpr,
     lawsApplied,
     complexity: {
       original: originalComplexity,

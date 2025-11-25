@@ -254,7 +254,7 @@ const Home: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8">
               {/* Simplification Steps */}
               <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 flex items-center">
@@ -299,21 +299,19 @@ const Home: React.FC = () => {
               )}
 
               {/* Logic Circuit */}
-              {results.logicCircuit && (
-                <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                    <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Logic Circuit
-                  </h2>
-                  <LogicGates 
-                    parsedExpression={results.parsed}
-                    expression={expression}
-                    logicCircuit={results.logicCircuit}
-                  />
-                </div>
-              )}
+              <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                  <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Logic Circuit
+                </h2>
+                <LogicGates 
+                  parsedExpression={null}
+                  expression={expression}
+                  logicCircuit={results.logicCircuit}
+                />
+              </div>
             </div>
           </div>
         </section>

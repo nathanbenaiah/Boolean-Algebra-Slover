@@ -2,15 +2,18 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { 
   Database, Users, Cpu, Download, Upload, RotateCcw, MousePointer, 
   Info, Copy, Undo2, Redo2, Trash2, ZoomIn, ZoomOut, Grid3X3, Move,
-  Settings, X, ChevronRight, ChevronLeft, Save, FileText, GitBranch
+  Settings, X, ChevronRight, ChevronLeft, Save, FileText, GitBranch,
+  PlayCircle, Square, Diamond, Minus, Circle, Layers
 } from 'lucide-react';
 import type { 
   DiagramMode, DFDNode, DFDConnection, EREntity, ERRelationship, 
-  ERAttribute, SidePanelMode, CanvasState, HistoryState, AttributeType, DataType 
+  ERAttribute, SidePanelMode, CanvasState, HistoryState, AttributeType, DataType,
+  FlowchartNode, FlowchartConnection
 } from '../types/diagram';
 import { generateRelationshipLine, getRelationshipTypeLabel } from '../utils/crowsFootNotation';
 import EntityNode from './diagram/EntityNode';
 import RelationshipLine from './diagram/RelationshipLine';
+import FlowchartNode from './diagram/FlowchartNode';
 import SidePanel from './diagram/SidePanel';
 
 const UnifiedDiagramEditor: React.FC = () => {
@@ -21,6 +24,8 @@ const UnifiedDiagramEditor: React.FC = () => {
   const [erEntities, setErEntities] = useState<EREntity[]>([]);
   const [erRelationships, setErRelationships] = useState<ERRelationship[]>([]);
   const [specializations, setSpecializations] = useState<SpecializationGeneralization[]>([]);
+  const [flowchartNodes, setFlowchartNodes] = useState<FlowchartNode[]>([]);
+  const [flowchartConnections, setFlowchartConnections] = useState<FlowchartConnection[]>([]);
   
   // Canvas state
   const [selectedTool, setSelectedTool] = useState<string>('select');
@@ -56,8 +61,8 @@ const UnifiedDiagramEditor: React.FC = () => {
   // Save to history
   const saveToHistory = useCallback(() => {
     const newState: HistoryState = {
-      nodes: mode === 'dfd' ? [...dfdNodes] : [...erEntities],
-      connections: mode === 'dfd' ? [...dfdConnections] : [...erRelationships],
+      nodes: mode === 'dfd' ? [...dfdNodes] : mode === 'flowchart' ? [...flowchartNodes] : [...erEntities],
+      connections: mode === 'dfd' ? [...dfdConnections] : mode === 'flowchart' ? [...flowchartConnections] : [...erRelationships],
       timestamp: Date.now()
     };
     const newHistory = history.slice(0, historyIndex + 1);
@@ -65,7 +70,7 @@ const UnifiedDiagramEditor: React.FC = () => {
     if (newHistory.length > 50) newHistory.shift();
     else setHistoryIndex(prev => prev + 1);
     setHistory(newHistory);
-  }, [mode, dfdNodes, dfdConnections, erEntities, erRelationships, history, historyIndex]);
+  }, [mode, dfdNodes, dfdConnections, erEntities, erRelationships, flowchartNodes, flowchartConnections, history, historyIndex]);
 
   // Undo/Redo
   const undo = useCallback(() => {
@@ -74,6 +79,9 @@ const UnifiedDiagramEditor: React.FC = () => {
       if (mode === 'dfd') {
         setDfdNodes(prevState.nodes as DFDNode[]);
         setDfdConnections(prevState.connections as DFDConnection[]);
+      } else if (mode === 'flowchart') {
+        setFlowchartNodes(prevState.nodes as FlowchartNode[]);
+        setFlowchartConnections(prevState.connections as FlowchartConnection[]);
       } else {
         setErEntities(prevState.nodes as EREntity[]);
         setErRelationships(prevState.connections as ERRelationship[]);
@@ -88,6 +96,9 @@ const UnifiedDiagramEditor: React.FC = () => {
       if (mode === 'dfd') {
         setDfdNodes(nextState.nodes as DFDNode[]);
         setDfdConnections(nextState.connections as DFDConnection[]);
+      } else if (mode === 'flowchart') {
+        setFlowchartNodes(nextState.nodes as FlowchartNode[]);
+        setFlowchartConnections(nextState.connections as FlowchartConnection[]);
       } else {
         setErEntities(nextState.nodes as EREntity[]);
         setErRelationships(nextState.connections as ERRelationship[]);
@@ -113,6 +124,16 @@ const UnifiedDiagramEditor: React.FC = () => {
             color: '#6b7280'
           };
           setDfdConnections(prev => [...prev, newConnection]);
+        } else if (mode === 'flowchart') {
+          const newConnection: FlowchartConnection = {
+            id: `flowchart-conn-${Date.now()}`,
+            from: canvasState.connectingFrom,
+            to: nodeId,
+            label: '',
+            color: '#6b7280',
+            style: 'solid'
+          };
+          setFlowchartConnections(prev => [...prev, newConnection]);
         } else {
           const newRelationship: ERRelationship = {
             id: `rel-${Date.now()}`,
@@ -143,6 +164,15 @@ const UnifiedDiagramEditor: React.FC = () => {
             selectedId: nodeId
           });
         }
+      } else if (mode === 'flowchart') {
+        const node = flowchartNodes.find(n => n.id === nodeId);
+        if (node) {
+          setSidePanel({
+            isOpen: true,
+            mode: 'flowchart-node',
+            selectedId: nodeId
+          });
+        }
       } else {
         setSidePanel({
           isOpen: true,
@@ -165,7 +195,47 @@ const UnifiedDiagramEditor: React.FC = () => {
     const x = (e.clientX - rect.left - pan.x) / zoom;
     const y = (e.clientY - rect.top - pan.y) / zoom;
 
-    if (mode === 'dfd') {
+    if (mode === 'flowchart') {
+      // Flowchart node creation
+      const flowchartNodeTypes: { [key: string]: FlowchartNodeType } = {
+        'start': 'start',
+        'end': 'end',
+        'process': 'process',
+        'decision': 'decision',
+        'input-output': 'input-output',
+        'connector': 'connector',
+        'predefined-process': 'predefined-process'
+      };
+      
+      const nodeType = flowchartNodeTypes[selectedTool];
+      if (nodeType) {
+        const defaultSizes: { [key: string]: { width: number; height: number } } = {
+          'start': { width: 120, height: 60 },
+          'end': { width: 120, height: 60 },
+          'process': { width: 150, height: 80 },
+          'decision': { width: 120, height: 120 },
+          'input-output': { width: 150, height: 80 },
+          'connector': { width: 40, height: 40 },
+          'predefined-process': { width: 150, height: 80 }
+        };
+        
+        const size = defaultSizes[nodeType] || { width: 120, height: 80 };
+        
+        const newNode: FlowchartNode = {
+          id: `flowchart-${Date.now()}`,
+          type: nodeType,
+          label: nodeType.charAt(0).toUpperCase() + nodeType.slice(1).replace('-', ' '),
+          x: x - size.width / 2,
+          y: y - size.height / 2,
+          width: size.width,
+          height: size.height,
+          color: '#e0f2fe'
+        };
+        
+        setFlowchartNodes(prev => [...prev, newNode]);
+        saveToHistory();
+      }
+    } else if (mode === 'dfd') {
       // DFD node creation
       const nodeTypes: Record<string, { type: DFDNode['type']; color: string }> = {
         'external-entity': { type: 'external-entity', color: '#8b5cf6' },
@@ -285,26 +355,30 @@ const UnifiedDiagramEditor: React.FC = () => {
         <div className="flex-1 flex flex-col">
           {/* Top Toolbar */}
           <div className="bg-white border-b border-gray-200 p-4">
-            {/* Mode Switcher */}
-            <div className="flex items-center space-x-2 mb-4">
-              <span className="text-sm font-medium text-gray-700">Diagram Type:</span>
-              {(['dfd', 'er', 'err'] as DiagramMode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setMode(m);
-                    setSelectedTool('select');
-                    setCanvasState(prev => ({ ...prev, selectedNodeId: null }));
-                  }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    mode === m
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {m.toUpperCase()}
-                </button>
-              ))}
+            {/* Enhanced Mode Switcher - Prominent Tabs */}
+            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-700">Diagram Type:</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {(['dfd', 'er', 'err', 'flowchart'] as DiagramMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      setMode(m);
+                      setSelectedTool('select');
+                      setCanvasState(prev => ({ ...prev, selectedNodeId: null }));
+                    }}
+                    className={`px-4 py-3 rounded-lg font-semibold text-sm transition-all duration-200 ${
+                      mode === m
+                        ? 'bg-blue-600 text-white shadow-md transform scale-105'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'
+                    }`}
+                  >
+                    {m === 'dfd' ? 'DFD' : m === 'er' ? 'ER Diagram' : m === 'err' ? 'ERR Diagram' : 'Flowchart'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Tool Selection */}
@@ -398,6 +472,88 @@ const UnifiedDiagramEditor: React.FC = () => {
                       <span>Specialization</span>
                     </button>
                   )}
+                </>
+              )}
+
+              {mode === 'flowchart' && (
+                <>
+                  <button
+                    onClick={() => setSelectedTool('start')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${
+                      selectedTool === 'start'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <PlayCircle size={18} />
+                    <span>Start</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedTool('process')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${
+                      selectedTool === 'process'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <Square size={18} />
+                    <span>Process</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedTool('decision')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${
+                      selectedTool === 'decision'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <Diamond size={18} />
+                    <span>Decision</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedTool('input-output')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${
+                      selectedTool === 'input-output'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <Minus size={18} />
+                    <span>Input/Output</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedTool('predefined-process')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${
+                      selectedTool === 'predefined-process'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <Layers size={18} />
+                    <span>Predefined</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedTool('connector')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${
+                      selectedTool === 'connector'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <Circle size={18} />
+                    <span>Connector</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedTool('end')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${
+                      selectedTool === 'end'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <PlayCircle size={18} className="rotate-180" />
+                    <span>End</span>
+                  </button>
                 </>
               )}
 
@@ -762,6 +918,88 @@ const UnifiedDiagramEditor: React.FC = () => {
                   </>
                 )}
 
+                {/* Flowchart Mode Rendering */}
+                {mode === 'flowchart' && (
+                  <>
+                    {/* Flowchart Connections */}
+                    {flowchartConnections.map((conn) => {
+                      const fromNode = flowchartNodes.find(n => n.id === conn.from);
+                      const toNode = flowchartNodes.find(n => n.id === conn.to);
+                      if (!fromNode || !toNode) return null;
+
+                      const fromX = fromNode.x + fromNode.width / 2;
+                      const fromY = fromNode.y + fromNode.height / 2;
+                      const toX = toNode.x + toNode.width / 2;
+                      const toY = toNode.y + toNode.height / 2;
+
+                      const strokeDasharray = conn.style === 'dashed' ? '5,5' : conn.style === 'dotted' ? '2,2' : 'none';
+
+                      return (
+                        <g key={conn.id}>
+                          <path
+                            d={`M ${fromX} ${fromY} L ${toX} ${toY}`}
+                            stroke={conn.color || '#6b7280'}
+                            strokeWidth="2"
+                            fill="none"
+                            strokeDasharray={strokeDasharray}
+                            markerEnd="url(#arrowhead)"
+                            className="cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCanvasState(prev => ({ ...prev, selectedConnectionId: conn.id, selectedNodeId: null }));
+                              setSidePanel({
+                                isOpen: true,
+                                mode: 'flowchart-connection',
+                                selectedId: conn.id
+                              });
+                            }}
+                          />
+                          {conn.label && (
+                            <text
+                              x={(fromX + toX) / 2}
+                              y={(fromY + toY) / 2 - 5}
+                              textAnchor="middle"
+                              className="text-xs fill-gray-600 pointer-events-none"
+                            >
+                              {conn.label}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    })}
+
+                    {/* Flowchart Nodes */}
+                    {flowchartNodes.map((node) => {
+                      const isSelected = canvasState.selectedNodeId === node.id;
+                      return (
+                        <FlowchartNode
+                          key={node.id}
+                          node={node}
+                          isSelected={isSelected}
+                          onMouseDown={(e) => handleNodeClick(e, node.id)}
+                          onLabelDoubleClick={(id, currentLabel) => {
+                            // Handle label editing
+                            setSidePanel({
+                              isOpen: true,
+                              mode: 'flowchart-node',
+                              selectedId: id
+                            });
+                          }}
+                          onResizeStart={(e, id, handle) => {
+                            e.stopPropagation();
+                            setCanvasState(prev => ({
+                              ...prev,
+                              resizingNodeId: id,
+                              resizeHandle: handle,
+                              isDragging: false
+                            }));
+                          }}
+                        />
+                      );
+                    })}
+                  </>
+                )}
+
                 {/* Arrow marker definition */}
                 <defs>
                   <marker
@@ -796,12 +1034,22 @@ const UnifiedDiagramEditor: React.FC = () => {
           getEntity={(id) => erEntities.find(e => e.id === id)}
           getDFDNode={(id) => dfdNodes.find(n => n.id === id)}
           getRelationship={(id) => erRelationships.find(r => r.id === id)}
+          getFlowchartNode={(id) => flowchartNodes.find(n => n.id === id)}
+          getFlowchartConnection={(id) => flowchartConnections.find(c => c.id === id)}
           updateEntity={(id, updates) => {
             setErEntities(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
             saveToHistory();
           }}
           updateDFDNode={(id, updates) => {
             setDfdNodes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
+            saveToHistory();
+          }}
+          updateFlowchartNode={(id, updates) => {
+            setFlowchartNodes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
+            saveToHistory();
+          }}
+          updateFlowchartConnection={(id, updates) => {
+            setFlowchartConnections(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
             saveToHistory();
           }}
           updateRelationship={(id, updates) => {
@@ -820,6 +1068,15 @@ const UnifiedDiagramEditor: React.FC = () => {
           }}
           deleteRelationship={(id) => {
             setErRelationships(prev => prev.filter(r => r.id !== id));
+            saveToHistory();
+          }}
+          deleteFlowchartNode={(id) => {
+            setFlowchartNodes(prev => prev.filter(n => n.id !== id));
+            setFlowchartConnections(prev => prev.filter(c => c.from !== id && c.to !== id));
+            saveToHistory();
+          }}
+          deleteFlowchartConnection={(id) => {
+            setFlowchartConnections(prev => prev.filter(c => c.id !== id));
             saveToHistory();
           }}
           addAttribute={(entityId, attribute) => {

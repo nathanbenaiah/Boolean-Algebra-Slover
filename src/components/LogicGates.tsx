@@ -12,9 +12,10 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Zap } from 'lucide-react';
+import { parseExpression as parseBooleanExpression } from '../utils/booleanAlgebra';
 
 interface ParsedExpression {
-  type: 'variable' | 'not' | 'and' | 'or' | 'constant';
+  type: 'variable' | 'not' | 'and' | 'or' | 'constant' | 'nand' | 'nor' | 'xor' | 'xnor';
   value?: string | boolean;
   children?: ParsedExpression[];
 }
@@ -212,7 +213,19 @@ const LogicGates: React.FC<LogicGatesProps> = ({ parsedExpression, expression })
   }
 
   const { nodes, edges } = useMemo(() => {
-    if (!parsedExpression) return { nodes: [], edges: [] };
+    // Use provided parsedExpression or parse the expression string as fallback
+    let exprToUse: ParsedExpression | null = parsedExpression;
+    
+    if (!exprToUse && expression.trim()) {
+      try {
+        exprToUse = parseBooleanExpression(expression);
+      } catch (error) {
+        console.error('Failed to parse expression for logic circuit:', error);
+        return { nodes: [], edges: [] };
+      }
+    }
+    
+    if (!exprToUse) return { nodes: [], edges: [] };
 
     const nodes: Node[] = [];
     const edges: Edge[] = [];
@@ -227,7 +240,7 @@ const LogicGates: React.FC<LogicGatesProps> = ({ parsedExpression, expression })
         expr.children.forEach(extractVariables);
       }
     };
-    extractVariables(parsedExpression);
+    extractVariables(exprToUse);
 
     // Create variable nodes with better spacing
     const varArray = Array.from(variables).sort();
@@ -245,6 +258,7 @@ const LogicGates: React.FC<LogicGatesProps> = ({ parsedExpression, expression })
 
     // Build logic circuit with enhanced spacing and positioning
     const buildCircuit = (expr: ParsedExpression, level: number = 0): string => {
+      if (!expr) return '';
       const currentId = `node-${nodeIdCounter++}`;
       const baseX = 150 + level * 250; // Increased spacing between levels
       
@@ -340,7 +354,7 @@ const LogicGates: React.FC<LogicGatesProps> = ({ parsedExpression, expression })
       return currentId;
     };
 
-    const outputGateId = buildCircuit(parsedExpression);
+    const outputGateId = buildCircuit(exprToUse);
     
     // Add output node with optimal positioning
     const outputId = 'output';
@@ -363,7 +377,7 @@ const LogicGates: React.FC<LogicGatesProps> = ({ parsedExpression, expression })
     });
 
     return { nodes, edges };
-  }, [parsedExpression]);
+  }, [parsedExpression, expression]);
 
   const onNodesChange = useCallback(() => {}, []);
   const onEdgesChange = useCallback(() => {}, []);
