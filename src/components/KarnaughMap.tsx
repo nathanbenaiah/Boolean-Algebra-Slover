@@ -133,9 +133,14 @@ const KarnaughMap: React.FC<KMapProps> = ({ kMap, expression }) => {
                 {row.map((cell, colIndex) => (
                   <div
                     key={colIndex}
-                    className={`w-20 h-20 border-3 flex items-center justify-center text-2xl font-bold transition-all duration-200 hover:scale-105 mr-1 rounded-lg shadow-sm ${getCellColor(cell)}`}
+                    className={`w-20 h-20 border-3 flex items-center justify-center text-2xl font-bold transition-all duration-200 hover:scale-110 hover:shadow-lg cursor-pointer mr-1 rounded-lg shadow-md ${getCellColor(cell)}`}
+                    title={`Row: ${cell.row}, Col: ${cell.col}, Value: ${cell.value ? '1' : '0'}`}
                   >
-                    {cell.value ? '1' : '0'}
+                    {cell.value ? (
+                      <span className="text-green-800">1</span>
+                    ) : (
+                      <span className="text-red-800">0</span>
+                    )}
                   </div>
                 ))}
               </div>

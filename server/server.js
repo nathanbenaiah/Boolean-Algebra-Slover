@@ -24,7 +24,7 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet());
 app.use(compression());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
   credentials: true
 }));
 
@@ -102,10 +102,11 @@ app.post('/api/simplify', async (req, res) => {
     
     res.json({
       original: expression,
-      simplified: simplified.expression,
-      steps: simplified.steps,
-      rules: simplified.rulesApplied,
-      method: simplified.method
+      simplified: simplified.simplifiedExpression || simplified.expression,
+      steps: simplified.steps || [],
+      rules: simplified.rulesApplied || [],
+      method: simplified.method || 'auto',
+      metadata: simplified.metadata || {}
     });
   } catch (error) {
     res.status(500).json({
@@ -125,10 +126,11 @@ app.post('/api/truth-table', async (req, res) => {
     
     res.json({
       expression,
-      variables: parsed.variables,
-      table: truthTable.rows,
-      minterms: truthTable.minterms,
-      maxterms: truthTable.maxterms
+      variables: parsed.variables || [],
+      table: truthTable.rows || [],
+      minterms: truthTable.minterms || [],
+      maxterms: truthTable.maxterms || [],
+      analysis: truthTable.analysis || {}
     });
   } catch (error) {
     res.status(500).json({
@@ -149,8 +151,9 @@ app.post('/api/karnaugh-map', async (req, res) => {
     res.json({
       expression,
       karnaughMap: kMap,
-      simplifiedSOP: kMap.simplifiedSOP,
-      essentialPrimeImplicants: kMap.essentialPrimeImplicants
+      simplifiedSOP: kMap.simplifiedSOP || '',
+      simplifiedPOS: kMap.simplifiedPOS || '',
+      essentialPrimeImplicants: kMap.groups?.filter(g => g.isEssential) || []
     });
   } catch (error) {
     res.status(500).json({
@@ -170,9 +173,12 @@ app.post('/api/logic-circuit', async (req, res) => {
     
     res.json({
       expression,
-      circuit: circuit.gates,
-      connections: circuit.connections,
-      optimization: circuit.optimization
+      circuit: {
+        gates: circuit.gates,
+        connections: circuit.connections,
+        optimization: circuit.optimization,
+        bounds: circuit.bounds
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -240,11 +246,12 @@ app.post('/api/minimize-advanced', async (req, res) => {
       results: results.map(result => ({
         algorithm: result.algorithm,
         minimized: result.expression,
-        gateCount: result.gateCount,
-        depth: result.depth,
-        performance: result.performance
+        gateCount: result.metadata?.gateCount || 0,
+        depth: result.metadata?.depth || 0,
+        performance: result.metadata?.performance || 0,
+        reductionPercentage: result.metadata?.reductionPercentage || 0
       })),
-      recommended: results[0] // Best result
+      recommended: results[0] || null // Best result
     });
   } catch (error) {
     res.status(500).json({

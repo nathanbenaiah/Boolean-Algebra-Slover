@@ -230,10 +230,10 @@ const ExpressionInput: React.FC<ExpressionInputProps> = ({ expression, onChange 
             onChange={handleInputChange}
             onFocus={() => setShowSuggestions(true)}
             placeholder="Enter Boolean expression (e.g., AB + A'C)"
-            className={`w-full px-4 py-4 text-lg font-mono border-2 rounded-xl focus:outline-none focus:ring-4 focus:ring-opacity-50 transition-all duration-200 ${
+            className={`w-full px-4 py-4 text-lg font-mono border-2 rounded-xl focus:outline-none focus:ring-4 focus:ring-opacity-50 transition-all duration-200 shadow-sm hover:shadow-md ${
               isValid 
-                ? 'border-blue-300 focus:border-blue-500 focus:ring-blue-500' 
-                : 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                ? 'border-blue-300 focus:border-blue-500 focus:ring-blue-500 bg-white' 
+                : 'border-red-300 focus:border-red-500 focus:ring-red-500 bg-red-50'
             } touch-manipulation`}
             style={{ fontSize: '18px' }} // Prevents zoom on iOS
           />

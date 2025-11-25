@@ -61,27 +61,44 @@ const TruthTable: React.FC<TruthTableProps> = ({ truthTable, expression }) => {
           <h4 className="text-lg font-semibold text-blue-800">Complete Truth Table</h4>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-full">
             <thead>
-              <tr className="bg-blue-100">
+              <tr className="bg-gradient-to-r from-blue-100 to-blue-200">
                 {variables.map(variable => (
-                  <th key={variable} className="px-4 py-3 text-left font-semibold text-blue-800">
+                  <th key={variable} className="px-4 py-3 text-center font-semibold text-blue-800 border-r border-blue-300">
                     {variable}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-left font-semibold text-blue-800">Output</th>
+                <th className="px-4 py-3 text-center font-semibold text-blue-800 bg-blue-300">Output</th>
               </tr>
             </thead>
             <tbody>
               {truthTable.map((row, index) => (
-                <tr key={index} className={`border-b border-blue-100 ${row.output ? 'bg-green-50' : 'bg-gray-50'}`}>
+                <tr 
+                  key={index} 
+                  className={`border-b border-blue-100 transition-colors hover:bg-blue-50 ${
+                    row.output ? 'bg-green-50 hover:bg-green-100' : 'bg-gray-50'
+                  }`}
+                >
                   {variables.map(variable => (
-                    <td key={variable} className="px-4 py-3 font-mono text-gray-800">
-                      {row.inputs[variable] ? '1' : '0'}
+                    <td key={variable} className="px-4 py-3 font-mono text-center text-gray-800 border-r border-blue-100">
+                      {row.inputs[variable] ? (
+                        <span className="inline-block w-8 h-8 rounded-full bg-green-200 text-green-800 flex items-center justify-center font-bold">1</span>
+                      ) : (
+                        <span className="inline-block w-8 h-8 rounded-full bg-red-200 text-red-800 flex items-center justify-center font-bold">0</span>
+                      )}
                     </td>
                   ))}
-                  <td className={`px-4 py-3 font-mono font-bold ${row.output ? 'text-green-700' : 'text-gray-600'}`}>
-                    {row.output ? '1' : '0'}
+                  <td className={`px-4 py-3 font-mono font-bold text-center ${
+                    row.output 
+                      ? 'text-green-700 bg-green-100' 
+                      : 'text-red-600 bg-red-50'
+                  }`}>
+                    {row.output ? (
+                      <span className="inline-block w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center">1</span>
+                    ) : (
+                      <span className="inline-block w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center">0</span>
+                    )}
                   </td>
                 </tr>
               ))}

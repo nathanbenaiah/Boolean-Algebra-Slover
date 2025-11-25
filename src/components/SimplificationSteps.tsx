@@ -2,9 +2,13 @@ import React from 'react';
 import { ArrowRight, Book } from 'lucide-react';
 
 interface SimplificationStep {
+  step?: number;
   expression: string;
   rule: string;
-  description: string;
+  description?: string;
+  lawApplied?: string;
+  beforeExpression?: string;
+  afterExpression?: string;
 }
 
 interface SimplificationStepsProps {
@@ -100,124 +104,128 @@ const SimplificationSteps: React.FC<SimplificationStepsProps> = ({ expression, s
       ) : (
         <div className="space-y-6">
           {/* Simplification Steps */}
-          {enhancedSteps.map((step, index) => (
-            <div key={index}>
-              {index > 0 && (
-                <div className="flex items-center justify-center mb-4">
-                  <ArrowRight className="text-blue-400" size={24} />
-                </div>
-              )}
-              
-              <div className={`border-l-4 rounded-lg p-6 ${
-                step.rule === 'Start' 
-                  ? 'bg-blue-50 border-blue-500' 
-                  : step.rule === 'Tautology Detection' || step.rule === 'Tautology Reached'
-                    ? 'bg-green-50 border-green-500'
-                  : step.rule === 'Contradiction Detection' || step.rule === 'Contradiction Reached'
-                    ? 'bg-red-50 border-red-500'
-                  : index === enhancedSteps.length - 1
-                    ? 'bg-green-50 border-green-500'
-                    : 'bg-white border-blue-300 shadow-sm'
-              }`}>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      step.rule === 'Start'
-                        ? 'bg-blue-500'
-                        : step.rule === 'Tautology Detection' || step.rule === 'Tautology Reached'
-                          ? 'bg-green-500'
-                        : step.rule === 'Contradiction Detection' || step.rule === 'Contradiction Reached'
-                          ? 'bg-red-500'
-                        : index === enhancedSteps.length - 1
-                          ? 'bg-green-500'
-                          : 'bg-blue-400'
-                    }`}>
-                      {index === enhancedSteps.length - 1 ? (
-                        <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <span className="text-white font-bold text-sm">{index + 1}</span>
+          {enhancedSteps.map((step, index) => {
+            const stepNumber = step.step !== undefined ? step.step : index + 1;
+            const isLast = index === enhancedSteps.length - 1;
+            const isStart = step.rule === 'Start';
+            const isTautology = step.rule === 'Tautology Detection' || step.rule === 'Tautology Reached';
+            const isContradiction = step.rule === 'Contradiction Detection' || step.rule === 'Contradiction Reached';
+            
+            return (
+              <div key={index}>
+                {index > 0 && (
+                  <div className="flex items-center justify-center mb-4">
+                    <ArrowRight className="text-blue-400" size={24} />
+                  </div>
+                )}
+                
+                <div className={`border-l-4 rounded-lg p-6 transition-all duration-300 hover:shadow-md ${
+                  isStart 
+                    ? 'bg-blue-50 border-blue-500' 
+                    : isTautology
+                      ? 'bg-green-50 border-green-500'
+                    : isContradiction
+                      ? 'bg-red-50 border-red-500'
+                    : isLast
+                      ? 'bg-green-50 border-green-500'
+                      : 'bg-white border-blue-300 shadow-sm'
+                }`}>
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${
+                        isStart
+                          ? 'bg-blue-500'
+                          : isTautology
+                            ? 'bg-green-500'
+                          : isContradiction
+                            ? 'bg-red-500'
+                          : isLast
+                            ? 'bg-green-500'
+                            : 'bg-blue-400'
+                      }`}>
+                        {isLast ? (
+                          <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <span className="text-white font-bold">{stepNumber}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h4 className={`text-lg font-medium mb-2 ${
+                        isStart
+                          ? 'text-blue-800'
+                          : isTautology
+                            ? 'text-green-800'
+                          : isContradiction
+                            ? 'text-red-800'
+                          : isLast
+                            ? 'text-green-800'
+                            : 'text-blue-800'
+                      }`}>
+                        {isStart 
+                          ? 'Original Expression'
+                          : isTautology
+                            ? '🎉 Tautology Detected!'
+                          : isContradiction
+                            ? '⚠️ Contradiction Detected!'
+                          : isLast
+                            ? 'Final Simplified Expression'
+                            : `Step ${stepNumber}: ${step.rule}`
+                        }
+                      </h4>
+                      <p className={`text-xl sm:text-2xl font-mono mb-3 px-3 py-2 rounded border break-words ${
+                        isStart
+                          ? 'text-blue-900 bg-white'
+                          : isTautology
+                            ? 'text-green-900 bg-white border-green-300'
+                          : isContradiction
+                            ? 'text-red-900 bg-white border-red-300'
+                          : isLast
+                            ? 'text-green-900 bg-white border-green-300'
+                            : 'text-gray-800 bg-blue-50'
+                      }`}>
+                        {step.expression}
+                      </p>
+                      {(step.description || step.lawApplied) && !isStart && (
+                        <div className={`rounded-lg p-3 ${
+                          isTautology
+                            ? 'bg-green-100'
+                          : isContradiction
+                            ? 'bg-red-100'
+                          : isLast
+                            ? 'bg-green-100'
+                            : 'bg-blue-50'
+                        }`}>
+                          <p className={`text-sm ${
+                            isTautology
+                              ? 'text-green-700'
+                            : isContradiction
+                              ? 'text-red-700'
+                            : isLast
+                              ? 'text-green-700'
+                              : 'text-blue-700'
+                          }`}>
+                            <strong>
+                              {isLast
+                                ? 'Result:'
+                                : 'Rule Explanation:'
+                              }
+                            </strong> {
+                              isLast
+                                ? 'This is the most simplified form of your Boolean expression.'
+                                : step.description || step.lawApplied || 'Boolean law applied'
+                            }
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>
-                  <div className="ml-4 flex-1">
-                    <h4 className={`text-lg font-medium mb-2 ${
-                      step.rule === 'Start'
-                        ? 'text-blue-800'
-                        : step.rule === 'Tautology Detection' || step.rule === 'Tautology Reached'
-                          ? 'text-green-800'
-                        : step.rule === 'Contradiction Detection' || step.rule === 'Contradiction Reached'
-                          ? 'text-red-800'
-                        : index === enhancedSteps.length - 1
-                          ? 'text-green-800'
-                          : 'text-blue-800'
-                    }`}>
-                      {step.rule === 'Start' 
-                        ? 'Original Expression'
-                        : step.rule === 'Tautology Detection'
-                          ? '🎉 Tautology Detected!'
-                        : step.rule === 'Tautology Reached'
-                          ? '🎉 Simplified to Tautology!'
-                        : step.rule === 'Contradiction Detection'
-                          ? '⚠️ Contradiction Detected!'
-                        : step.rule === 'Contradiction Reached'
-                          ? '⚠️ Simplified to Contradiction!'
-                        : index === enhancedSteps.length - 1
-                          ? 'Final Simplified Expression'
-                          : `Apply: ${step.rule}`
-                      }
-                    </h4>
-                    <p className={`text-2xl font-mono mb-3 px-3 py-2 rounded border ${
-                      step.rule === 'Start'
-                        ? 'text-blue-900 bg-white'
-                        : step.rule === 'Tautology Detection' || step.rule === 'Tautology Reached'
-                          ? 'text-green-900 bg-white border-green-300'
-                        : step.rule === 'Contradiction Detection' || step.rule === 'Contradiction Reached'
-                          ? 'text-red-900 bg-white border-red-300'
-                        : index === enhancedSteps.length - 1
-                          ? 'text-green-900 bg-white'
-                          : 'text-gray-800 bg-blue-50'
-                    }`}>
-                      {step.expression}
-                    </p>
-                    {step.description && step.rule !== 'Start' && (
-                                              <div className={`rounded-lg p-3 ${
-                        step.rule === 'Tautology Detection' || step.rule === 'Tautology Reached'
-                          ? 'bg-green-100'
-                        : step.rule === 'Contradiction Detection' || step.rule === 'Contradiction Reached'
-                          ? 'bg-red-100'
-                        : index === enhancedSteps.length - 1
-                          ? 'bg-green-100'
-                          : 'bg-blue-50'
-                      }`}>
-                        <p className={`text-sm ${
-                          step.rule === 'Tautology Detection' || step.rule === 'Tautology Reached'
-                            ? 'text-green-700'
-                          : step.rule === 'Contradiction Detection' || step.rule === 'Contradiction Reached'
-                            ? 'text-red-700'
-                          : index === enhancedSteps.length - 1
-                            ? 'text-green-700'
-                            : 'text-blue-700'
-                        }`}>
-                          <strong>
-                            {index === enhancedSteps.length - 1
-                              ? 'Result:'
-                              : 'Rule Explanation:'
-                            }
-                          </strong> {
-                            index === enhancedSteps.length - 1
-                              ? 'This is the most simplified form of your Boolean expression.'
-                              : step.description
-                          }
-                        </p>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

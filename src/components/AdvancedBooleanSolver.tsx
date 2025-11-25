@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Server, Monitor } from 'lucide-react';
 import { comprehensiveSimplify, type ComprehensiveResult } from '../utils/comprehensiveBooleanSolver';
+import { processExpression, checkBackendHealth } from '../services/api';
 
 interface Props {
   className?: string;
@@ -127,6 +129,16 @@ export const AdvancedBooleanSolver: React.FC<Props> = ({ className = '' }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedSample, setSelectedSample] = useState('');
+  const [useBackend, setUseBackend] = useState(false);
+  const [backendAvailable, setBackendAvailable] = useState(false);
+
+  // Check backend availability on mount
+  useEffect(() => {
+    checkBackendHealth().then(available => {
+      setBackendAvailable(available);
+      setUseBackend(available);
+    });
+  }, []);
 
   const handleSimplify = async () => {
     if (!expression.trim()) {
@@ -138,12 +150,79 @@ export const AdvancedBooleanSolver: React.FC<Props> = ({ className = '' }) => {
     setError(null);
     
     try {
-      const simplificationResult = comprehensiveSimplify(expression);
+      let simplificationResult: ComprehensiveResult;
+      
+      if (useBackend && backendAvailable) {
+        // Try backend first
+        const apiResponse = await processExpression(expression);
+        
+        if (apiResponse.error) {
+          throw new Error(apiResponse.error.message || 'Backend processing failed');
+        }
+        
+        if (apiResponse.data) {
+          // Convert backend response to ComprehensiveResult format
+          const backendData = apiResponse.data;
+          simplificationResult = {
+            originalExpression: backendData.original || expression,
+            simplifiedExpression: backendData.simplified?.simplifiedExpression || backendData.simplified?.simplified || expression,
+            steps: backendData.simplified?.steps?.map((step: any, index: number) => ({
+              step: index + 1,
+              expression: step.expression || step.after || '',
+              rule: step.rule || 'Unknown',
+              description: step.description || '',
+              lawApplied: step.rule || 'Unknown',
+              beforeExpression: step.before || '',
+              afterExpression: step.after || step.expression || ''
+            })) || [],
+            truthTable: backendData.truthTable?.table?.map((row: any) => ({
+              inputs: row.inputs || {},
+              output: row.output || false,
+              minterm: row.minterm,
+              maxterm: row.maxterm
+            })) || [],
+            karnaughMap: backendData.karnaughMap?.karnaughMap || null,
+            logicCircuit: backendData.logicCircuit?.circuit ? {
+              nodes: backendData.logicCircuit.circuit.gates || [],
+              edges: backendData.logicCircuit.circuit.connections || [],
+              inputs: backendData.parsed?.variables || [],
+              outputs: ['Y'],
+              levels: backendData.logicCircuit.circuit.optimization?.depth || 0,
+              gateCount: {},
+              complexity: backendData.logicCircuit.circuit.optimization?.complexity || 0
+            } : null,
+            lawsApplied: backendData.simplified?.rules || [],
+            complexity: {
+              original: expression.length,
+              simplified: (backendData.simplified?.simplifiedExpression || backendData.simplified?.simplified || '').length,
+              reduction: backendData.simplified?.metadata?.reductionPercentage || 0
+            },
+            gatesUsed: [],
+            visualizations: {}
+          };
+        } else {
+          throw new Error('No data received from backend');
+        }
+      } else {
+        // Use client-side processing
+        simplificationResult = comprehensiveSimplify(expression);
+      }
+      
       setResult(simplificationResult);
     } catch (err) {
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error occurred'}`);
-      // Keep console.error for actual error handling
       console.error('Simplification error:', err);
+      
+      // Fallback to client-side if backend fails
+      if (useBackend && backendAvailable) {
+        try {
+          const fallbackResult = comprehensiveSimplify(expression);
+          setResult(fallbackResult);
+          setError('Backend unavailable, using client-side processing');
+        } catch (fallbackError) {
+          setError('Both backend and client-side processing failed');
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -493,6 +572,34 @@ export const AdvancedBooleanSolver: React.FC<Props> = ({ className = '' }) => {
           </div>
         </div>
 
+        {/* Backend Toggle */}
+        {backendAvailable && (
+          <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {useBackend ? (
+                  <Server className="w-5 h-5 text-green-600" />
+                ) : (
+                  <Monitor className="w-5 h-5 text-blue-600" />
+                )}
+                <span className="text-sm font-medium text-gray-700">
+                  Processing Mode: {useBackend ? 'Backend Server' : 'Client-Side'}
+                </span>
+              </div>
+              <button
+                onClick={() => setUseBackend(!useBackend)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  useBackend
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                }`}
+              >
+                {useBackend ? 'Switch to Client-Side' : 'Switch to Backend'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Input Section */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <h3 className="text-xl font-semibold mb-4 text-gray-800">🔍 Expression Input</h3>
@@ -514,14 +621,29 @@ export const AdvancedBooleanSolver: React.FC<Props> = ({ className = '' }) => {
             <button
               onClick={handleSimplify}
               disabled={isLoading || !expression.trim()}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+              className="relative bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
             >
-              {isLoading ? '🔄 Simplifying...' : '⚡ Simplify Expression'}
+              {isLoading ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Simplifying{useBackend && backendAvailable ? ' (Backend)' : ' (Client-Side)'}...
+                </span>
+              ) : (
+                <span className="flex items-center">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Simplify Expression
+                </span>
+              )}
             </button>
           </div>
           {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800">{error}</p>
+            <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
+              <p className="text-yellow-800 text-sm">{error}</p>
             </div>
           )}
         </div>
